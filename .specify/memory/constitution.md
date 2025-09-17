@@ -18,7 +18,7 @@ All code must adhere to SOLID principles:
 
 ### III. Component-First Development
 
-Every feature starts as a reusable component; Components must be self-contained, independently testable, and documented with Storybook examples; Clear purpose required - no organizational-only components; Shadcn/UI components should be extended, not modified directly.
+Every feature starts as a reusable component; Components must be self-contained, independently testable; Clear purpose required - no organizational-only components; Shadcn/UI components should be extended, not modified directly.
 
 ### IV. Performance-First Implementation
 
@@ -56,8 +56,6 @@ Leverage Vercel AI SDK for intelligent features; Use OpenRouter for diverse mode
 - TypeScript strict mode compliance required
 - ESLint and Prettier formatting enforced
 - Component tests required for all UI components
-- Integration tests required for AI features and video processing
-- Performance budgets must be met before deployment
 - Accessibility standards (WCAG 2.1 AA) compliance verified
 
 ### Animation Standards
@@ -71,9 +69,8 @@ Leverage Vercel AI SDK for intelligent features; Use OpenRouter for diverse mode
 ### AI Integration Standards
 
 - Graceful degradation when AI services are unavailable
-- User consent for AI feature usage
 - Data minimization in AI requests
-- Response streaming for better UX
+- Response streaming or use loading screens for better UX
 - Error boundaries for AI failures
 
 ## Governance
