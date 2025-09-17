@@ -1,0 +1,672 @@
+openapi: 3.0.3
+info:
+  title: AI Video Generation API
+  description: Internal API routes for AI video generation web application
+  version: 1.0.0
+  contact:
+    name: VT Challenge Project
+
+servers:
+  - url: /api
+    description: Next.js API routes
+
+paths:
+  /generate/title:
+    post:
+      summary: Generate project title from user prompt
+      description: Uses OpenRouter to generate a compelling title for the video project
+      tags:
+        - Generation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - prompt
+              properties:
+                prompt:
+                  type: string
+                  minLength: 1
+                  maxLength: 1000
+                  description: User's original text input
+                  example: "I want to create a video story about the history of Ferrari"
+      responses:
+        200:
+          description: Successfully generated title
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - title
+                properties:
+                  title:
+                    type: string
+                    minLength: 1
+                    maxLength: 100
+                    description: AI-generated project title
+                    example: "The Ferrari Legacy: From Dreams to Racing Glory"
+        400:
+          $ref: "#/components/responses/BadRequest"
+        500:
+          $ref: "#/components/responses/ServerError"
+
+  /generate/storyboard:
+    post:
+      summary: Generate video storyboard from user prompt
+      description: Uses OpenRouter to create a detailed storyboard for the video project
+      tags:
+        - Generation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - prompt
+                - title
+              properties:
+                prompt:
+                  type: string
+                  minLength: 1
+                  maxLength: 1000
+                  description: User's original text input
+                title:
+                  type: string
+                  minLength: 1
+                  maxLength: 100
+                  description: Previously generated title
+      responses:
+        200:
+          description: Successfully generated storyboard
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - storyboard
+                properties:
+                  storyboard:
+                    type: string
+                    minLength: 1
+                    maxLength: 2000
+                    description: AI-generated storyboard description
+                    example: "Scene 1: Enzo Ferrari's workshop in 1940s Italy..."
+        400:
+          $ref: "#/components/responses/BadRequest"
+        500:
+          $ref: "#/components/responses/ServerError"
+
+  /generate/scene-prompts:
+    post:
+      summary: Generate image prompts for video scenes
+      description: Uses OpenRouter to create 4 specific image generation prompts
+      tags:
+        - Generation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - storyboard
+                - title
+              properties:
+                storyboard:
+                  type: string
+                  minLength: 1
+                  maxLength: 2000
+                  description: Previously generated storyboard
+                title:
+                  type: string
+                  minLength: 1
+                  maxLength: 100
+                  description: Project title
+      responses:
+        200:
+          description: Successfully generated scene prompts
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - prompts
+                properties:
+                  prompts:
+                    type: array
+                    items:
+                      type: string
+                      minLength: 1
+                      maxLength: 500
+                    minItems: 4
+                    maxItems: 4
+                    description: Array of 4 image generation prompts
+                    example:
+                      - "1940s Italian workshop with vintage car parts, warm lighting, cinematic, 16:9"
+                      - "Red Ferrari racing car on a sunny track, motion blur, professional photography, 16:9"
+                      - "Modern Ferrari factory assembly line, workers in action, industrial lighting, 16:9"
+                      - "Iconic Ferrari logo close-up with Italian flag colors, elegant composition, 16:9"
+        400:
+          $ref: "#/components/responses/BadRequest"
+        500:
+          $ref: "#/components/responses/ServerError"
+
+  /generate/image:
+    post:
+      summary: Generate image from prompt
+      description: Uses Fal AI to generate a 16:9 image from text prompt
+      tags:
+        - Generation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - prompt
+              properties:
+                prompt:
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+                  description: Image generation prompt
+                model:
+                  type: string
+                  enum: [fast, quality]
+                  default: fast
+                  description: AI model to use (fast=flux-schnell, quality=nano-banana)
+                sceneId:
+                  type: string
+                  format: uuid
+                  description: Scene ID for tracking (optional)
+      responses:
+        200:
+          description: Successfully generated image
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - imageUrl
+                properties:
+                  imageUrl:
+                    type: string
+                    format: uri
+                    description: URL of the generated image
+                    example: "https://storage.googleapis.com/fal-ai/generated-image.jpg"
+                  width:
+                    type: integer
+                    description: Image width in pixels
+                    example: 1024
+                  height:
+                    type: integer
+                    description: Image height in pixels
+                    example: 576
+        400:
+          $ref: "#/components/responses/BadRequest"
+        429:
+          $ref: "#/components/responses/RateLimit"
+        500:
+          $ref: "#/components/responses/ServerError"
+
+  /projects:
+    get:
+      summary: List user's video projects
+      description: Retrieve all projects from local storage
+      tags:
+        - Projects
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 10
+          description: Maximum number of projects to return
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          description: Number of projects to skip
+      responses:
+        200:
+          description: List of user projects
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - projects
+                  - total
+                properties:
+                  projects:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/VideoProject"
+                  total:
+                    type: integer
+                    description: Total number of projects
+                  hasMore:
+                    type: boolean
+                    description: Whether more projects are available
+
+    post:
+      summary: Create new video project
+      description: Initialize a new project and start AI generation pipeline
+      tags:
+        - Projects
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - originalPrompt
+              properties:
+                originalPrompt:
+                  type: string
+                  minLength: 1
+                  maxLength: 1000
+                  description: User's text input for video creation
+      responses:
+        201:
+          description: Project created and generation started
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - projectId
+                  - status
+                properties:
+                  projectId:
+                    type: string
+                    format: uuid
+                    description: Unique project identifier
+                  status:
+                    type: string
+                    enum: [generating]
+                    description: Project status
+        400:
+          $ref: "#/components/responses/BadRequest"
+        500:
+          $ref: "#/components/responses/ServerError"
+
+  /projects/{projectId}:
+    get:
+      summary: Get project details
+      description: Retrieve complete project information including scenes
+      tags:
+        - Projects
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      responses:
+        200:
+          description: Project details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VideoProject"
+        404:
+          $ref: "#/components/responses/NotFound"
+
+    put:
+      summary: Update project
+      description: Update project metadata (title, scenes positions, etc.)
+      tags:
+        - Projects
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  minLength: 1
+                  maxLength: 100
+                scenes:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/SceneUpdate"
+      responses:
+        200:
+          description: Project updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VideoProject"
+        400:
+          $ref: "#/components/responses/BadRequest"
+        404:
+          $ref: "#/components/responses/NotFound"
+
+    delete:
+      summary: Delete project
+      description: Remove project and all associated data
+      tags:
+        - Projects
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      responses:
+        204:
+          description: Project deleted successfully
+        404:
+          $ref: "#/components/responses/NotFound"
+
+  /projects/{projectId}/scenes/{sceneId}/edit:
+    post:
+      summary: Edit scene image
+      description: Generate new image for scene with user's edit prompt
+      tags:
+        - Scenes
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+        - $ref: "#/components/parameters/SceneId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - prompt
+              properties:
+                prompt:
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+                  description: User's edit prompt for the scene
+      responses:
+        202:
+          description: Scene edit started
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - status
+                  - editId
+                properties:
+                  status:
+                    type: string
+                    enum: [editing]
+                  editId:
+                    type: string
+                    format: uuid
+                    description: Edit operation identifier
+        400:
+          $ref: "#/components/responses/BadRequest"
+        404:
+          $ref: "#/components/responses/NotFound"
+
+components:
+  parameters:
+    ProjectId:
+      name: projectId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: Unique project identifier
+
+    SceneId:
+      name: sceneId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: Unique scene identifier
+
+  schemas:
+    VideoProject:
+      type: object
+      required:
+        - id
+        - title
+        - originalPrompt
+        - storyboard
+        - scenes
+        - createdAt
+        - updatedAt
+        - status
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique project identifier
+        title:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: AI-generated project title
+        originalPrompt:
+          type: string
+          minLength: 1
+          maxLength: 1000
+          description: User's original text input
+        storyboard:
+          type: string
+          minLength: 1
+          maxLength: 2000
+          description: AI-generated storyboard
+        scenes:
+          type: array
+          items:
+            $ref: "#/components/schemas/Scene"
+          minItems: 4
+          maxItems: 4
+          description: Array of 4 video scenes
+        createdAt:
+          type: string
+          format: date-time
+          description: Project creation timestamp
+        updatedAt:
+          type: string
+          format: date-time
+          description: Last modification timestamp
+        status:
+          type: string
+          enum: [generating, completed, failed, editing]
+          description: Current project status
+
+    Scene:
+      type: object
+      required:
+        - id
+        - projectId
+        - index
+        - prompt
+        - imageUrl
+        - canvasPosition
+        - status
+        - generatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique scene identifier
+        projectId:
+          type: string
+          format: uuid
+          description: Parent project identifier
+        index:
+          type: integer
+          minimum: 0
+          maximum: 3
+          description: Scene order in video (0-3)
+        prompt:
+          type: string
+          minLength: 1
+          maxLength: 500
+          description: Image generation prompt
+        imageUrl:
+          type: string
+          format: uri
+          description: Generated image URL
+        canvasPosition:
+          $ref: "#/components/schemas/Position"
+        status:
+          type: string
+          enum: [generating, completed, failed, editing]
+          description: Current scene status
+        generatedAt:
+          type: string
+          format: date-time
+          description: Image generation timestamp
+        editHistory:
+          type: array
+          items:
+            $ref: "#/components/schemas/SceneEdit"
+          description: History of user edits
+
+    Position:
+      type: object
+      required:
+        - x
+        - y
+        - width
+        - height
+      properties:
+        x:
+          type: number
+          minimum: 0
+          description: X coordinate in canvas
+        y:
+          type: number
+          minimum: 0
+          description: Y coordinate in canvas
+        width:
+          type: number
+          minimum: 1
+          description: Scene width in canvas
+        height:
+          type: number
+          minimum: 1
+          description: Scene height in canvas
+
+    SceneEdit:
+      type: object
+      required:
+        - id
+        - prompt
+        - previousImageUrl
+        - newImageUrl
+        - timestamp
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Edit identifier
+        prompt:
+          type: string
+          minLength: 1
+          maxLength: 500
+          description: User's edit prompt
+        previousImageUrl:
+          type: string
+          format: uri
+          description: Previous image URL
+        newImageUrl:
+          type: string
+          format: uri
+          description: New image URL
+        timestamp:
+          type: string
+          format: date-time
+          description: Edit timestamp
+
+    SceneUpdate:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        canvasPosition:
+          $ref: "#/components/schemas/Position"
+
+    Error:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+          description: Error type identifier
+        message:
+          type: string
+          description: Human-readable error message
+        details:
+          type: string
+          description: Additional error details
+        code:
+          type: string
+          description: Application-specific error code
+
+  responses:
+    BadRequest:
+      description: Invalid request parameters
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            error: "validation_error"
+            message: "Prompt must be between 1 and 1000 characters"
+            details: "The provided prompt exceeds maximum length"
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            error: "not_found"
+            message: "Project not found"
+            details: "No project exists with the provided ID"
+
+    RateLimit:
+      description: Rate limit exceeded
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            error: "rate_limit_exceeded"
+            message: "Too many image generation requests"
+            details: "Please wait before making another request"
+
+    ServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            error: "internal_server_error"
+            message: "An unexpected error occurred"
+            details: "AI provider temporarily unavailable"
+
+tags:
+  - name: Generation
+    description: AI content generation endpoints
+  - name: Projects
+    description: Video project management
+  - name: Scenes
+    description: Individual scene operations

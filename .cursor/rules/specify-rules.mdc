@@ -1,0 +1,186 @@
+# VT Challenge: AI Video Generation Web Application
+
+**Feature**: `001-we-will-create` | **Updated**: September 17, 2025
+
+## Project Overview
+
+AI-powered video generation web application that transforms user text input into video content through multiple AI generation stages. Built with Next.js 15, Tailwind CSS 4, and integrated AI providers.
+
+## Tech Stack
+
+### Core Framework
+
+- **Next.js 15** with App Router (NOT Pages Router)
+- **TypeScript** in strict mode
+- **Tailwind CSS 4.0+** with Shadcn/UI components
+- **Motion** library (NOT Framer Motion) for animations
+- **pnpm** as package manager (NO npm/yarn)
+
+### AI Integration
+
+- **Vercel AI SDK** for unified AI provider interface
+- **OpenRouter** for text generation (titles, storyboards, prompts)
+- **Fal AI** for image generation:
+  - `fal-ai/flux-1/schnell` for initial generation (fast)
+  - `fal-ai/nano-banana` for image editing (quality)
+
+### Video & Media
+
+- **Remotion** for video composition and playback
+- **Next.js Image** optimization for generated content
+- **16:9 aspect ratio** for all video content
+
+### Storage & State
+
+- **Local Storage** for project persistence (no authentication)
+- **React Context** for runtime state management
+- **next-themes** for light/dark mode
+
+## Architecture Patterns
+
+### Component Structure
+
+```
+src/
+├── app/                    # Next.js 15 App Router pages
+├── components/             # Reusable UI components
+│   ├── ui/                # Shadcn/UI base components
+│   ├── canvas/            # Canvas workspace components
+│   ├── editor/            # Video editor components
+│   └── generation/        # AI generation components
+├── lib/                   # Utility functions and configs
+├── hooks/                 # Custom React hooks
+├── providers/             # Context providers
+└── types/                 # TypeScript type definitions
+```
+
+### Data Flow
+
+1. User input → OpenRouter (title/storyboard/prompts)
+2. Generated prompts → Fal AI (image generation)
+3. Images → Local Storage (persistence)
+4. Images → Remotion (video composition)
+
+## Key Requirements
+
+### Functional
+
+- Homepage with text input and project history
+- Engaging loading screen during AI generation
+- Canvas workspace with draggable scene images
+- Image editing via prompt overlay popover
+- Video preview with Remotion player
+- Light/dark mode support
+
+### Performance
+
+- Core Web Vitals: LCP < 2.5s, FID < 100ms, CLS < 0.1
+- 60fps animations with hardware acceleration
+- Efficient image loading and caching
+
+### User Experience
+
+- Modern UI with background gradients
+- Smooth transitions and animations
+- Responsive design for all devices
+- Accessible keyboard navigation
+
+## Environment Variables
+
+```bash
+OPENROUTER_API_KEY=your_openrouter_key_here
+FAL_API_KEY=your_fal_api_key_here
+```
+
+## Constitutional Compliance
+
+### SOLID Principles
+
+- Single Responsibility: Each component has one clear purpose
+- Open/Closed: Extensible through props and composition
+- Liskov Substitution: Interchangeable component variants
+- Interface Segregation: Focused component APIs
+- Dependency Inversion: Abstract AI provider interfaces
+
+### Performance First
+
+- Next.js optimization features mandatory
+- Hardware-accelerated animations only
+- Image optimization for all generated content
+- Lazy loading for non-critical components
+
+### Component Guidelines
+
+- Extend Shadcn/UI components, never modify directly
+- Self-contained components with clear props interface
+- Comprehensive error boundaries for AI operations
+- Accessibility features built-in (WCAG 2.1 AA)
+
+## Common Patterns
+
+### AI Generation Hook
+
+```typescript
+const useAIGeneration = (type: GenerationType) => {
+  const [status, setStatus] = useState<GenerationStatus>("idle");
+  const [error, setError] = useState<string | null>(null);
+  // Implementation with Vercel AI SDK
+};
+```
+
+### Canvas Item Component
+
+```typescript
+interface CanvasItemProps {
+  scene: Scene;
+  position: Position;
+  onPositionChange: (position: Position) => void;
+  onEdit: (prompt: string) => void;
+}
+```
+
+### Video Composition
+
+```typescript
+// Remotion composition for 4-scene video
+export const VideoComposition: React.FC<{ scenes: Scene[] }> = ({ scenes }) => {
+  return (
+    <Sequence durationInFrames={240}>
+      {" "}
+      {/* 8 seconds at 30fps */}
+      {scenes.map((scene, index) => (
+        <Sequence from={index * 60} durationInFrames={60}>
+          {" "}
+          {/* 2s each */}
+          <SceneFrame scene={scene} />
+        </Sequence>
+      ))}
+    </Sequence>
+  );
+};
+```
+
+## Recent Changes
+
+- Initial project specification and planning completed
+- Data model and API contracts defined
+- Research phase completed with technology decisions
+- Constitution compliance verified
+
+## Error Handling
+
+- Toast notifications for user-facing errors
+- Retry mechanisms for AI provider failures
+- Graceful degradation for offline scenarios
+- Comprehensive error boundaries
+
+## Testing Strategy
+
+- Vitest for unit testing
+- React Testing Library for component testing
+- Lighthouse for performance validation
+- Accessibility testing with axe-core
+
+---
+
+_Auto-generated from specify system. Manual edits preserved between markers._
