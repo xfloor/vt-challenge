@@ -1,50 +1,87 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+# VT Challenge Constitution
 
 ## Core Principles
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+### I. Superior User Experience
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+Every interface must prioritize sleek, modern, and engaging design with superior typography. Animation and motion should enhance user experience, not distract from it. Components must be responsive, accessible, and performant across all devices and viewport sizes.
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+### II. SOLID Architecture (NON-NEGOTIABLE)
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+All code must adhere to SOLID principles:
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+- **Single Responsibility**: Each class/component has one reason to change
+- **Open/Closed**: Open for extension, closed for modification
+- **Liskov Substitution**: Derived classes must be substitutable for base classes
+- **Interface Segregation**: Clients shouldn't depend on interfaces they don't use
+- **Dependency Inversion**: Depend on abstractions, not concretions
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+### III. Component-First Development
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+Every feature starts as a reusable component; Components must be self-contained, independently testable, and documented with Storybook examples; Clear purpose required - no organizational-only components; Shadcn/UI components should be extended, not modified directly.
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
+### IV. Performance-First Implementation
 
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+Core Web Vitals must be optimized: LCP < 2.5s, FID < 100ms, CLS < 0.1; Images must use Next.js Image optimization; Fonts must use Next.js Font optimization; Components must implement proper lazy loading and code splitting; Motion animations must use hardware acceleration and respect user preferences.
+
+### V. AI-Enhanced Development
+
+Leverage Vercel AI SDK for intelligent features; Use OpenRouter for diverse model access; Use FAL for specialized AI tasks; AI features must have fallback states and error handling; User data privacy must be maintained in all AI interactions.
+
+## Technology Stack Constraints
+
+### Required Technologies
+
+- **Framework**: Next.js 15 with App Router
+- **Styling**: Tailwind CSS 4.0+ with Shadcn/UI components
+- **Animation**: Motion (not Framer Motion) for all animations
+- **Optimization**: Next.js built-in Image and Font optimization
+- **AI**: Vercel AI SDK with OpenRouter and FAL providers
+- **Video**: Remotion for video generation and processing
+- **Package Manager**: pnpm (NO npm or yarn)
+- **TypeScript**: Strict mode enabled
+
+### Forbidden Technologies
+
+- Framer Motion (use Motion instead)
+- npm/yarn (use pnpm only)
+- CSS-in-JS libraries (use Tailwind)
+- Unoptimized images or fonts
+- Client-side rendering for static content
+
+## Development Workflow
+
+### Code Quality Gates
+
+- TypeScript strict mode compliance required
+- ESLint and Prettier formatting enforced
+- Component tests required for all UI components
+- Integration tests required for AI features and video processing
+- Performance budgets must be met before deployment
+- Accessibility standards (WCAG 2.1 AA) compliance verified
+
+### Animation Standards
+
+- All animations must use Motion library
+- Respect `prefers-reduced-motion` user preference
+- 60fps performance target for all animations
+- Hardware acceleration for transform animations
+- Meaningful motion that enhances UX, not decorative
+
+### AI Integration Standards
+
+- Graceful degradation when AI services are unavailable
+- User consent for AI feature usage
+- Data minimization in AI requests
+- Response streaming for better UX
+- Error boundaries for AI failures
 
 ## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+This constitution supersedes all other development practices. Amendments require documentation in git commit messages and team approval. All pull requests must verify compliance with these principles.
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+**Complexity must be justified**: Simple solutions preferred over clever ones. When in doubt, choose readability over performance micro-optimizations.
+
+**User-first decisions**: Technical decisions must prioritize user experience and performance over developer convenience.
+
+**Version**: 1.0.0 | **Ratified**: 2025-09-17 | **Last Amended**: 2025-09-17
