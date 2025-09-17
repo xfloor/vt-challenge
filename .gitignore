@@ -1,0 +1,8 @@
+# Dependencies
+node_modules/
+
+# Next.js build output
+.next/
+
+# Cursor MCP configuration
+.cursor/mcp.json
