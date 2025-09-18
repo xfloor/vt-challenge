@@ -1,6 +1,21 @@
 "use client";
 
-import { GenerationTask } from "@/context/generation-context";
+// Generation task interface
+export interface GenerationTask {
+  id: string;
+  type: "title" | "storyboard" | "scene-prompts" | "image" | "video";
+  prompt: string;
+  projectId: string;
+  sceneId?: string;
+  priority: number;
+  retryCount: number;
+  maxRetries: number;
+  createdAt: Date;
+  updatedAt: Date;
+  status: "pending" | "running" | "completed" | "failed" | "cancelled";
+  result?: any;
+  error?: GenerationError;
+}
 
 // Generation-specific error types
 export class GenerationError extends Error {

@@ -216,3 +216,4 @@ export function getImageGenerationSummary(
     sceneDetails,
   };
 }
+
