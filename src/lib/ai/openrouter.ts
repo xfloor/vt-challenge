@@ -114,11 +114,12 @@ export async function generateScenePrompts(
 
   const { text } = await generateText({
     model: openRouterClient.chat(config.openRouter.model),
-    prompt: `Convert this storyboard for "${title}" into exactly 4 detailed image generation prompts:
+    prompt: `Convert this storyboard for "${title}" into exactly 4 detailed image generation prompts.
 
+Storyboard:
 ${storyboard}
 
-Requirements for each prompt:
+Generate 4 prompts with these requirements:
 - Optimized for AI image generation (Stable Diffusion/FLUX)
 - Include artistic style (cinematic, photorealistic, etc.)
 - Specify 16:9 aspect ratio
@@ -127,7 +128,7 @@ Requirements for each prompt:
 - 20-50 words per prompt
 - Professional photography/film style
 
-Return exactly 4 prompts, one per line, numbered 1-4:`,
+Format: Return ONLY the 4 prompts, one per line, numbered 1-4. No introductory text or explanations.`,
     temperature: 0.7,
   });
 
@@ -141,7 +142,23 @@ Return exactly 4 prompts, one per line, numbered 1-4:`,
   for (const line of lines) {
     // Remove numbering and clean up
     const cleanPrompt = line.replace(/^\d+\.?\s*/, "").trim();
-    if (cleanPrompt && prompts.length < 4) {
+
+    // Skip instructional text and non-prompt lines
+    const isInstructionalText =
+      cleanPrompt.toLowerCase().includes("here are") ||
+      cleanPrompt.toLowerCase().includes("detailed image generation prompts") ||
+      cleanPrompt.toLowerCase().includes("requirements for each prompt") ||
+      cleanPrompt.toLowerCase().includes("return exactly") ||
+      cleanPrompt.toLowerCase().includes("optimized for ai image generation") ||
+      cleanPrompt.toLowerCase().includes("include artistic style") ||
+      cleanPrompt.toLowerCase().includes("specify 16:9 aspect ratio") ||
+      cleanPrompt.toLowerCase().includes("include lighting and mood") ||
+      cleanPrompt.toLowerCase().includes("be specific about visual elements") ||
+      cleanPrompt.toLowerCase().includes("20-50 words per prompt") ||
+      cleanPrompt.toLowerCase().includes("numbered 1-4") ||
+      cleanPrompt.length < 10; // Skip very short lines that are likely not prompts
+
+    if (!isInstructionalText && cleanPrompt && prompts.length < 4) {
       // Ensure 16:9 aspect ratio is specified
       const finalPrompt = cleanPrompt.includes("16:9")
         ? cleanPrompt
