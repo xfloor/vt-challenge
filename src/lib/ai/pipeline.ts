@@ -3,6 +3,11 @@
  * Orchestrates the full AI video generation workflow
  */
 
+import {
+  getImageGenerationSummary,
+  logImageDebugInfo,
+  validateImageData,
+} from "@/lib/debug/image-debug";
 import { projectStorage } from "@/lib/storage/projects";
 import { sessionStorage } from "@/lib/storage/session";
 import { ProjectStatus, SceneStatus, VideoProject } from "@/types/project";
@@ -298,13 +303,31 @@ export async function generateProjectContentEnhanced(
     });
 
     const scenes = project.scenes.filter((scene) => scene && scene.prompt);
+    console.log(
+      `[GenerationPipeline] Starting image generation for ${scenes.length} scenes`
+    );
 
     // Generate images one by one in strict sequence
     for (let i = 0; i < scenes.length; i++) {
       const scene = scenes[i];
       const sceneIndex = i;
+      const sceneId = crypto.randomUUID().slice(0, 8);
 
       try {
+        console.log(
+          `[GenerationPipeline:${sceneId}] Starting image generation for scene ${
+            sceneIndex + 1
+          }/${scenes.length}:`,
+          {
+            sceneId: scene.id,
+            prompt:
+              scene.prompt?.substring(0, 100) +
+              (scene.prompt?.length > 100 ? "..." : ""),
+            promptLength: scene.prompt?.length || 0,
+            currentStatus: scene.status,
+          }
+        );
+
         updateProgress({
           currentSceneIndex: sceneIndex,
           status: `Generating image ${sceneIndex + 1}/${scenes.length}...`,
@@ -312,6 +335,9 @@ export async function generateProjectContentEnhanced(
 
         scene.status = SceneStatus.GENERATING;
         await saveProject(project);
+        console.log(
+          `[GenerationPipeline:${sceneId}] Scene status updated to GENERATING`
+        );
 
         // Generate image using API or mock responses
         const { shouldUseMockResponses, getMockImageData } = await import(
@@ -322,9 +348,18 @@ export async function generateProjectContentEnhanced(
 
         if (shouldUseMockResponses()) {
           console.log(
-            `[GenerationPipeline] Using mock response for image generation`
+            `[GenerationPipeline:${sceneId}] Using mock response for image generation`
           );
           const imageData = getMockImageData(scene.prompt);
+          console.log(
+            `[GenerationPipeline:${sceneId}] Mock image data generated:`,
+            {
+              hasData: !!imageData,
+              dataLength: imageData?.length || 0,
+              preview: imageData?.substring(0, 50) + "..." || "null",
+            }
+          );
+
           imageResult = {
             imageData: imageData,
             width: 1024,
@@ -332,35 +367,96 @@ export async function generateProjectContentEnhanced(
           };
         } else {
           console.log(
-            `[GenerationPipeline] Using real API for image generation`
+            `[GenerationPipeline:${sceneId}] Using real API for image generation`
           );
           const baseUrl =
             typeof window !== "undefined"
               ? window.location.origin
               : "http://localhost:3000";
+
+          console.log(
+            `[GenerationPipeline:${sceneId}] Making API request to: ${baseUrl}/api/generate/image`
+          );
+          const requestBody = {
+            prompt: scene.prompt,
+            model: "fast",
+            sceneId: scene.id,
+          };
+          console.log(`[GenerationPipeline:${sceneId}] Request body:`, {
+            promptLength: requestBody.prompt?.length || 0,
+            model: requestBody.model,
+            sceneId: requestBody.sceneId,
+          });
+
           const imageResponse = await fetch(`${baseUrl}/api/generate/image`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
             },
-            body: JSON.stringify({
-              prompt: scene.prompt,
-              model: "fast",
-              sceneId: scene.id,
-            }),
+            body: JSON.stringify(requestBody),
           });
+
+          console.log(
+            `[GenerationPipeline:${sceneId}] API response received:`,
+            {
+              status: imageResponse.status,
+              statusText: imageResponse.statusText,
+              ok: imageResponse.ok,
+              headers: Object.fromEntries(imageResponse.headers.entries()),
+            }
+          );
 
           if (!imageResponse.ok) {
             const errorText = await imageResponse.text();
             console.error(
-              `[GenerationPipeline] Image API error response: ${errorText}`
+              `[GenerationPipeline:${sceneId}] Image API error response:`,
+              {
+                status: imageResponse.status,
+                statusText: imageResponse.statusText,
+                errorText: errorText,
+              }
             );
             throw new Error(
-              `Image generation failed: ${imageResponse.status} ${imageResponse.statusText}`
+              `Image generation failed: ${imageResponse.status} ${imageResponse.statusText} - ${errorText}`
             );
           }
 
           const imageData = await imageResponse.json();
+          console.log(`[GenerationPipeline:${sceneId}] API response parsed:`, {
+            hasImageData: !!imageData.imageData,
+            imageDataLength: imageData.imageData?.length || 0,
+            width: imageData.width,
+            height: imageData.height,
+            imageDataPreview:
+              imageData.imageData?.substring(0, 50) + "..." || "null",
+          });
+
+          // Validate the API response
+          if (!imageData.imageData || imageData.imageData.length === 0) {
+            console.error(
+              `[GenerationPipeline:${sceneId}] API returned empty image data`
+            );
+            throw new Error("API returned empty image data");
+          }
+
+          if (
+            !imageData.width ||
+            !imageData.height ||
+            imageData.width <= 0 ||
+            imageData.height <= 0
+          ) {
+            console.error(
+              `[GenerationPipeline:${sceneId}] API returned invalid dimensions:`,
+              {
+                width: imageData.width,
+                height: imageData.height,
+              }
+            );
+            throw new Error(
+              `API returned invalid dimensions: ${imageData.width}x${imageData.height}`
+            );
+          }
+
           imageResult = {
             imageData: imageData.imageData,
             width: imageData.width,
@@ -368,12 +464,124 @@ export async function generateProjectContentEnhanced(
           };
         }
 
+        console.log(
+          `[GenerationPipeline:${sceneId}] Image generation completed successfully:`,
+          {
+            hasImageData: !!imageResult.imageData,
+            imageDataLength: imageResult.imageData?.length || 0,
+            width: imageResult.width,
+            height: imageResult.height,
+          }
+        );
+
+        // Use debugging utilities to validate the final result
+        logImageDebugInfo(`Scene-${sceneIndex + 1}`, imageResult.imageData, {
+          width: imageResult.width,
+          height: imageResult.height,
+          sceneId: scene.id,
+        });
+
+        try {
+          validateImageData(imageResult.imageData, `Scene ${sceneIndex + 1}`);
+        } catch (validationError) {
+          console.error(
+            `[GenerationPipeline:${sceneId}] Image validation failed:`,
+            validationError
+          );
+          throw new Error(
+            `Image validation failed: ${
+              validationError instanceof Error
+                ? validationError.message
+                : "Unknown validation error"
+            }`
+          );
+        }
+
         scene.imageData = imageResult.imageData;
         scene.status = SceneStatus.COMPLETED;
         scene.generatedAt = new Date();
 
+        console.log(
+          `[GenerationPipeline:${sceneId}] Scene updated with image data:`,
+          {
+            sceneId: scene.id,
+            status: scene.status,
+            hasImageData: !!scene.imageData,
+            imageDataLength: scene.imageData?.length || 0,
+            generatedAt: scene.generatedAt,
+          }
+        );
+
         project.updatedAt = new Date();
-        await saveProject(project);
+
+        // Save project with verification
+        console.log(
+          `[GenerationPipeline:${sceneId}] Attempting to save project with image data`
+        );
+        const saveSuccess = await saveProject(project);
+        if (!saveSuccess) {
+          console.error(
+            `[GenerationPipeline:${sceneId}] Failed to save project with image data`
+          );
+          throw new Error(
+            `Failed to save project with image data for scene ${sceneIndex + 1}`
+          );
+        }
+
+        // Verify the image was actually saved
+        const verificationProject = await loadProject(projectId);
+        if (!verificationProject) {
+          console.error(
+            `[GenerationPipeline:${sceneId}] Could not load project for verification`
+          );
+          throw new Error(
+            `Could not verify project save for scene ${sceneIndex + 1}`
+          );
+        }
+
+        const savedScene = verificationProject.scenes.find(
+          (s) => s.id === scene.id
+        );
+        if (
+          !savedScene ||
+          !savedScene.imageData ||
+          savedScene.imageData.length === 0
+        ) {
+          console.error(
+            `[GenerationPipeline:${sceneId}] Image data not found in saved project:`,
+            {
+              sceneId: scene.id,
+              hasSavedScene: !!savedScene,
+              hasImageData: !!savedScene?.imageData,
+              imageDataLength: savedScene?.imageData?.length || 0,
+            }
+          );
+          throw new Error(
+            `Image data not properly saved for scene ${sceneIndex + 1}`
+          );
+        }
+
+        if (savedScene.imageData.length !== scene.imageData.length) {
+          console.error(
+            `[GenerationPipeline:${sceneId}] Image data size mismatch after save:`,
+            {
+              originalLength: scene.imageData.length,
+              savedLength: savedScene.imageData.length,
+            }
+          );
+          throw new Error(
+            `Image data size mismatch after save for scene ${sceneIndex + 1}`
+          );
+        }
+
+        console.log(
+          `[GenerationPipeline:${sceneId}] Project saved and verified successfully:`,
+          {
+            sceneId: scene.id,
+            imageDataLength: savedScene.imageData.length,
+            status: savedScene.status,
+          }
+        );
 
         // Update progress after each image
         const imageProgress = ((i + 1) / scenes.length) * 52; // 52% for all images
@@ -382,9 +590,33 @@ export async function generateProjectContentEnhanced(
           percentage: 50 + imageProgress,
           status: `Generated image ${sceneIndex + 1}/${scenes.length}`,
         });
+
+        console.log(
+          `[GenerationPipeline:${sceneId}] Image generation completed for scene ${
+            sceneIndex + 1
+          }/${scenes.length}`
+        );
       } catch (error) {
+        console.error(
+          `[GenerationPipeline:${sceneId}] Error generating image for scene ${
+            sceneIndex + 1
+          }:`,
+          {
+            error,
+            message: error instanceof Error ? error.message : "Unknown error",
+            stack: error instanceof Error ? error.stack : undefined,
+            sceneId: scene.id,
+            prompt:
+              scene.prompt?.substring(0, 100) +
+              (scene.prompt?.length > 100 ? "..." : ""),
+          }
+        );
+
         scene.status = SceneStatus.FAILED;
         await saveProject(project);
+        console.log(
+          `[GenerationPipeline:${sceneId}] Scene status updated to FAILED and project saved`
+        );
         throw error;
       }
     }
@@ -397,28 +629,113 @@ export async function generateProjectContentEnhanced(
       percentage: 83,
     });
 
+    console.log(
+      `[GenerationPipeline] Starting final validation for project ${projectId}`
+    );
+
     // CRITICAL: Validate that ALL images are completed before marking as done
     const allImagesReady = validateImageCompletion(project);
     const anyFailed = project.scenes.some(
       (scene) => scene.status === SceneStatus.FAILED
     );
 
+    // Detailed validation logging using debugging utilities
+    const generationSummary = getImageGenerationSummary(project.scenes);
+    console.log(`[GenerationPipeline] Final validation results:`, {
+      totalScenes: project.scenes.length,
+      allImagesReady,
+      anyFailed,
+      summary: generationSummary,
+    });
+
     if (!allImagesReady) {
-      // If not all images are ready, this is an error condition
+      console.error(
+        `[GenerationPipeline] Image generation incomplete - validation failed`
+      );
+      const incompleteScenes = project.scenes.filter(
+        (scene) =>
+          scene.status !== SceneStatus.COMPLETED ||
+          !scene.imageData ||
+          scene.imageData.length === 0
+      );
+      console.error(
+        `[GenerationPipeline] Incomplete scenes:`,
+        incompleteScenes.map((scene) => ({
+          id: scene.id,
+          status: scene.status,
+          hasImageData: !!scene.imageData,
+          imageDataLength: scene.imageData?.length || 0,
+        }))
+      );
+
       throw new Error(
         "Image generation incomplete - not all images were generated successfully"
       );
     }
 
     if (anyFailed) {
+      console.error(`[GenerationPipeline] Some images failed to generate`);
+      const failedScenes = project.scenes.filter(
+        (scene) => scene.status === SceneStatus.FAILED
+      );
+      console.error(
+        `[GenerationPipeline] Failed scenes:`,
+        failedScenes.map((scene) => ({
+          id: scene.id,
+          status: scene.status,
+          prompt:
+            scene.prompt?.substring(0, 100) +
+            (scene.prompt?.length > 100 ? "..." : ""),
+        }))
+      );
+
       project.status = ProjectStatus.FAILED;
       throw new Error("Some images failed to generate");
     }
 
-    // Only mark as completed if ALL images are ready
+    console.log(`[GenerationPipeline] All images validated successfully`);
+
+    // Final save and verification before marking as completed
+    console.log(`[GenerationPipeline] Performing final save and verification`);
+    const finalSaveSuccess = await saveProject(project);
+    if (!finalSaveSuccess) {
+      console.error(`[GenerationPipeline] Final save failed`);
+      throw new Error("Failed to save project in final step");
+    }
+
+    // Final verification that all images are saved
+    const finalVerificationProject = await loadProject(projectId);
+    if (!finalVerificationProject) {
+      console.error(
+        `[GenerationPipeline] Final verification failed: could not load project`
+      );
+      throw new Error("Could not verify final project state");
+    }
+
+    const finalImageCount = finalVerificationProject.scenes.filter(
+      (s) => s.imageData && s.imageData.length > 0
+    ).length;
+    if (finalImageCount !== project.scenes.length) {
+      console.error(
+        `[GenerationPipeline] Final verification failed: expected ${project.scenes.length} images, found ${finalImageCount}`
+      );
+      throw new Error(
+        `Final verification failed: expected ${project.scenes.length} images, found ${finalImageCount}`
+      );
+    }
+
+    console.log(
+      `[GenerationPipeline] Final verification successful: all ${finalImageCount} images saved`
+    );
+
+    // Only mark as completed if ALL images are ready and saved
     project.status = ProjectStatus.COMPLETED;
     project.updatedAt = new Date();
-    await saveProject(project);
+    const completionSaveSuccess = await saveProject(project);
+    if (!completionSaveSuccess) {
+      console.error(`[GenerationPipeline] Failed to save completion status`);
+      throw new Error("Failed to save project completion status");
+    }
 
     updateProgress({
       step: GenerationStep.COMPLETE,
@@ -527,52 +844,156 @@ export async function regenerateScene(
       "./mock-responses"
     );
 
+    const regenerationId = crypto.randomUUID().slice(0, 8);
+    console.log(
+      `[GenerationPipeline:${regenerationId}] Starting scene regeneration:`,
+      {
+        sceneId: scene.id,
+        newPrompt:
+          newPrompt.substring(0, 100) + (newPrompt.length > 100 ? "..." : ""),
+        promptLength: newPrompt.length,
+      }
+    );
+
     let imageResult: { imageData: string; width: number; height: number };
 
     if (shouldUseMockResponses()) {
       console.log(
-        `[GenerationPipeline] Using mock response for image regeneration`
+        `[GenerationPipeline:${regenerationId}] Using mock response for image regeneration`
       );
       const imageData = getMockImageData(newPrompt);
+      logImageDebugInfo(`Regeneration-${regenerationId}`, imageData, {
+        isMock: true,
+      });
+
       imageResult = {
         imageData: imageData,
         width: 1024,
         height: 576,
       };
     } else {
-      console.log(`[GenerationPipeline] Using real API for image regeneration`);
+      console.log(
+        `[GenerationPipeline:${regenerationId}] Using real API for image regeneration`
+      );
       const baseUrl =
         typeof window !== "undefined"
           ? window.location.origin
           : "http://localhost:3000";
+
+      const requestBody = {
+        prompt: newPrompt,
+        model: "fast",
+        sceneId: scene.id,
+      };
+
+      console.log(
+        `[GenerationPipeline:${regenerationId}] Making regeneration request:`,
+        {
+          url: `${baseUrl}/api/generate/image`,
+          requestBody,
+        }
+      );
+
       const imageResponse = await fetch(`${baseUrl}/api/generate/image`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          prompt: newPrompt,
-          model: "fast",
-          sceneId: scene.id,
-        }),
+        body: JSON.stringify(requestBody),
       });
+
+      console.log(
+        `[GenerationPipeline:${regenerationId}] Regeneration API response:`,
+        {
+          status: imageResponse.status,
+          statusText: imageResponse.statusText,
+          ok: imageResponse.ok,
+        }
+      );
 
       if (!imageResponse.ok) {
         const errorText = await imageResponse.text();
         console.error(
-          `[GenerationPipeline] Image regeneration API error response: ${errorText}`
+          `[GenerationPipeline:${regenerationId}] Image regeneration API error response:`,
+          {
+            status: imageResponse.status,
+            statusText: imageResponse.statusText,
+            errorText,
+          }
         );
         throw new Error(
-          `Image regeneration failed: ${imageResponse.status} ${imageResponse.statusText}`
+          `Image regeneration failed: ${imageResponse.status} ${imageResponse.statusText} - ${errorText}`
         );
       }
 
       const imageData = await imageResponse.json();
+      console.log(
+        `[GenerationPipeline:${regenerationId}] Regeneration response parsed:`,
+        {
+          hasImageData: !!imageData.imageData,
+          imageDataLength: imageData.imageData?.length || 0,
+          width: imageData.width,
+          height: imageData.height,
+        }
+      );
+
+      // Validate the response
+      if (!imageData.imageData || imageData.imageData.length === 0) {
+        console.error(
+          `[GenerationPipeline:${regenerationId}] Regeneration API returned empty image data`
+        );
+        throw new Error("Regeneration API returned empty image data");
+      }
+
+      if (
+        !imageData.width ||
+        !imageData.height ||
+        imageData.width <= 0 ||
+        imageData.height <= 0
+      ) {
+        console.error(
+          `[GenerationPipeline:${regenerationId}] Regeneration API returned invalid dimensions:`,
+          {
+            width: imageData.width,
+            height: imageData.height,
+          }
+        );
+        throw new Error(
+          `Regeneration API returned invalid dimensions: ${imageData.width}x${imageData.height}`
+        );
+      }
+
       imageResult = {
         imageData: imageData.imageData,
         width: imageData.width,
         height: imageData.height,
       };
+    }
+
+    // Use debugging utilities to validate the regeneration result
+    logImageDebugInfo(`Regeneration-${regenerationId}`, imageResult.imageData, {
+      width: imageResult.width,
+      height: imageResult.height,
+      sceneId: scene.id,
+    });
+
+    try {
+      validateImageData(
+        imageResult.imageData,
+        `Regeneration ${regenerationId}`
+      );
+    } catch (validationError) {
+      console.error(
+        `[GenerationPipeline:${regenerationId}] Regeneration validation failed:`,
+        validationError
+      );
+      throw new Error(
+        `Regeneration validation failed: ${
+          validationError instanceof Error
+            ? validationError.message
+            : "Unknown validation error"
+        }`
+      );
     }
     scene.imageData = imageResult.imageData;
     scene.status = SceneStatus.COMPLETED;
@@ -590,7 +1011,43 @@ export async function regenerateScene(
     }
 
     project.updatedAt = new Date();
-    await projectStorage.saveProject(project);
+
+    // Save with verification
+    console.log(
+      `[GenerationPipeline:${regenerationId}] Saving regenerated scene`
+    );
+    const saveSuccess = await projectStorage.saveProject(project);
+    if (!saveSuccess) {
+      console.error(
+        `[GenerationPipeline:${regenerationId}] Failed to save regenerated scene`
+      );
+      throw new Error("Failed to save regenerated scene");
+    }
+
+    // Verify the regeneration was saved
+    const verificationProject = await projectStorage.getProject(projectId);
+    if (!verificationProject) {
+      console.error(
+        `[GenerationPipeline:${regenerationId}] Could not verify regeneration save`
+      );
+      throw new Error("Could not verify regeneration save");
+    }
+
+    const savedScene = verificationProject.scenes.find((s) => s.id === sceneId);
+    if (
+      !savedScene ||
+      !savedScene.imageData ||
+      savedScene.imageData.length === 0
+    ) {
+      console.error(
+        `[GenerationPipeline:${regenerationId}] Regenerated image not found in saved project`
+      );
+      throw new Error("Regenerated image not properly saved");
+    }
+
+    console.log(
+      `[GenerationPipeline:${regenerationId}] Scene regeneration saved and verified successfully`
+    );
 
     return true;
   } catch (error) {

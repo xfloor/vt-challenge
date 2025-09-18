@@ -100,8 +100,8 @@ export const getDefaultAIConfig = (): AIProviderConfig => ({
       quality: "fal-ai/nano-banana",
     },
     imageSize: {
-      width: 1024,
-      height: 576, // 16:9 aspect ratio
+      width: 800,
+      height: 450, // 16:9 aspect ratio
     },
   },
 });

@@ -5,6 +5,12 @@ import {
   safeLocalStorageRemoveItem,
   safeLocalStorageSetItem,
 } from "./browser-storage";
+import {
+  cleanupFallbackStorage,
+  loadProjectFallback,
+  saveProjectFallback,
+  shouldUseFallbackStorage,
+} from "./fallback-storage";
 
 class StorageManager {
   getItem<T>(key: string): T | null {
@@ -59,8 +65,25 @@ export class ProjectStorage {
    */
   async getProject(id: string): Promise<VideoProject | null> {
     try {
+      // Try regular storage first
       const projects = await this.getProjects();
-      return projects.find((project) => project.id === id) || null;
+      const project = projects.find((p) => p.id === id);
+
+      if (project) {
+        return project;
+      }
+
+      // Try fallback storage
+      console.log(
+        `[ProjectStorage] Project ${id} not found in regular storage, trying fallback`
+      );
+      const fallbackProject = await loadProjectFallback(id);
+      if (fallbackProject) {
+        console.log(`[ProjectStorage] Project ${id} found in fallback storage`);
+        return fallbackProject;
+      }
+
+      return null;
     } catch (error) {
       console.error("Failed to get project:", error);
       return null;
@@ -71,7 +94,36 @@ export class ProjectStorage {
    * Save a new project or update existing one
    */
   async saveProject(project: VideoProject): Promise<boolean> {
+    const projectId = project.id;
+    console.log(`[ProjectStorage] Starting save for project ${projectId}`);
+
     try {
+      // Calculate project size for debugging
+      const projectSize = new Blob([JSON.stringify(project)]).size;
+      const imageDataSizes = project.scenes
+        .filter((scene) => scene.imageData)
+        .map((scene) => ({
+          sceneId: scene.id,
+          size: scene.imageData?.length || 0,
+          sizeKB: ((scene.imageData?.length || 0) / 1024).toFixed(2),
+        }));
+
+      console.log(`[ProjectStorage] Project size analysis:`, {
+        totalSize: `${(projectSize / 1024).toFixed(2)}KB`,
+        sceneCount: project.scenes.length,
+        scenesWithImages: project.scenes.filter((s) => s.imageData).length,
+        imageDataSizes,
+      });
+
+      // Check if we need to use fallback storage
+      const useFallback = shouldUseFallbackStorage(project);
+      if (useFallback) {
+        console.log(
+          `[ProjectStorage] Using fallback storage for large project ${projectId}`
+        );
+        return await this.saveProjectWithFallback(project);
+      }
+
       const projects = await this.getProjects();
       const existingIndex = projects.findIndex((p) => p.id === project.id);
 
@@ -82,21 +134,166 @@ export class ProjectStorage {
 
       if (existingIndex >= 0) {
         projects[existingIndex] = updatedProject;
+        console.log(
+          `[ProjectStorage] Updating existing project at index ${existingIndex}`
+        );
       } else {
         projects.push(updatedProject);
+        console.log(`[ProjectStorage] Adding new project`);
       }
 
-      this.storageManager.setItem(PROJECTS_KEY, projects);
+      // Save projects list
+      const projectsListSaved = this.storageManager.setItem(
+        PROJECTS_KEY,
+        projects
+      );
+      if (!projectsListSaved) {
+        console.error(
+          `[ProjectStorage] Failed to save projects list for project ${projectId}`
+        );
+        return false;
+      }
+      console.log(`[ProjectStorage] Projects list saved successfully`);
 
-      // Also store individual project for faster access
-      this.storageManager.setItem(
+      // Save individual project
+      const individualProjectSaved = this.storageManager.setItem(
         `${PROJECT_PREFIX}${project.id}`,
         updatedProject
       );
+      if (!individualProjectSaved) {
+        console.error(
+          `[ProjectStorage] Failed to save individual project ${projectId}`
+        );
+        return false;
+      }
+      console.log(`[ProjectStorage] Individual project saved successfully`);
 
+      // Verify the save was successful by reading it back
+      const verificationProject = await this.getProject(projectId);
+      if (!verificationProject) {
+        console.error(
+          `[ProjectStorage] Verification failed: could not read back project ${projectId}`
+        );
+        return false;
+      }
+
+      // Check if all image data is preserved
+      const originalImageDataCount = project.scenes.filter(
+        (s) => s.imageData
+      ).length;
+      const savedImageDataCount = verificationProject.scenes.filter(
+        (s) => s.imageData
+      ).length;
+
+      if (originalImageDataCount !== savedImageDataCount) {
+        console.error(
+          `[ProjectStorage] Image data count mismatch: original=${originalImageDataCount}, saved=${savedImageDataCount}`
+        );
+        return false;
+      }
+
+      // Check if image data sizes match
+      for (let i = 0; i < project.scenes.length; i++) {
+        const originalScene = project.scenes[i];
+        const savedScene = verificationProject.scenes[i];
+
+        if (originalScene.imageData && savedScene.imageData) {
+          if (originalScene.imageData.length !== savedScene.imageData.length) {
+            console.error(
+              `[ProjectStorage] Image data size mismatch for scene ${i}: original=${originalScene.imageData.length}, saved=${savedScene.imageData.length}`
+            );
+            return false;
+          }
+        }
+      }
+
+      console.log(
+        `[ProjectStorage] Project ${projectId} saved and verified successfully`
+      );
       return true;
     } catch (error) {
-      console.error("Failed to save project:", error);
+      console.error(`[ProjectStorage] Failed to save project ${projectId}:`, {
+        error: error instanceof Error ? error.message : "Unknown error",
+        stack: error instanceof Error ? error.stack : undefined,
+        projectSize: `${(
+          new Blob([JSON.stringify(project)]).size / 1024
+        ).toFixed(2)}KB`,
+      });
+      return false;
+    }
+  }
+
+  /**
+   * Save project using fallback storage mechanism
+   */
+  private async saveProjectWithFallback(
+    project: VideoProject
+  ): Promise<boolean> {
+    try {
+      const projectId = project.id;
+      console.log(
+        `[ProjectStorage] Saving project ${projectId} with fallback storage`
+      );
+
+      // Clean up old fallback storage first
+      cleanupFallbackStorage();
+
+      // Save using fallback storage
+      const fallbackSaved = await saveProjectFallback(project);
+      if (!fallbackSaved) {
+        console.error(
+          `[ProjectStorage] Fallback storage failed for project ${projectId}`
+        );
+        return false;
+      }
+
+      // Update projects list to include this project (without full data)
+      const projects = await this.getProjects();
+      const existingIndex = projects.findIndex((p) => p.id === project.id);
+
+      const projectSummary = {
+        id: project.id,
+        title: project.title,
+        status: project.status,
+        createdAt: project.createdAt,
+        updatedAt: new Date(),
+        originalPrompt: project.originalPrompt,
+        storyboard: project.storyboard,
+        scenes: project.scenes.map((scene) => ({
+          id: scene.id,
+          status: scene.status,
+          prompt: scene.prompt,
+          hasImageData: !!scene.imageData,
+          imageDataLength: scene.imageData?.length || 0,
+        })),
+        // Don't include full image data in the summary
+        _fallbackStorage: true,
+      };
+
+      if (existingIndex >= 0) {
+        projects[existingIndex] = projectSummary;
+      } else {
+        projects.push(projectSummary);
+      }
+
+      // Save the projects list
+      const projectsListSaved = this.storageManager.setItem(
+        PROJECTS_KEY,
+        projects
+      );
+      if (!projectsListSaved) {
+        console.error(
+          `[ProjectStorage] Failed to save projects list with fallback`
+        );
+        return false;
+      }
+
+      console.log(
+        `[ProjectStorage] Project ${projectId} saved with fallback storage successfully`
+      );
+      return true;
+    } catch (error) {
+      console.error(`[ProjectStorage] Fallback storage error:`, error);
       return false;
     }
   }
