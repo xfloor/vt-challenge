@@ -11,7 +11,6 @@ import {
   safeLocalStorageSetItem,
 } from "./browser-storage";
 
-const FALLBACK_STORAGE_KEY = "videomaker_fallback_storage";
 const MAX_CHUNK_SIZE = 1024 * 1024; // 1MB chunks
 
 export interface FallbackStorageInfo {
@@ -27,7 +26,6 @@ export interface FallbackStorageInfo {
 export function shouldUseFallbackStorage(project: VideoProject): boolean {
   const projectSize = new Blob([JSON.stringify(project)]).size;
   const currentStorageSize = getLocalStorageSize();
-  const totalSize = projectSize + currentStorageSize;
 
   // Use fallback if project is large or localStorage is near capacity
   return (
@@ -254,7 +252,6 @@ export function getFallbackStorageInfo(): FallbackStorageInfo {
       if (key) keys.push(key);
     }
 
-    const chunkKeys = keys.filter((key) => key.startsWith("videomaker_chunk_"));
     const metadataKeys = keys.filter((key) =>
       key.startsWith("videomaker_metadata_")
     );
@@ -298,4 +295,3 @@ export function getFallbackStorageInfo(): FallbackStorageInfo {
     };
   }
 }
-

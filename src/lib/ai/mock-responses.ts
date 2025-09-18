@@ -117,16 +117,6 @@ export function getMockImageData(prompt: string): string {
 }
 
 /**
- * Get a mock image URL (deprecated - use getMockImageData instead)
- */
-export function getMockImageUrl(prompt: string): string {
-  const index =
-    Math.abs(prompt.split("").reduce((a, b) => a + b.charCodeAt(0), 0)) %
-    MOCK_IMAGE_DATA.length;
-  return MOCK_IMAGE_DATA[index];
-}
-
-/**
  * Check if we should use mock responses
  */
 export function shouldUseMockResponses(): boolean {

@@ -94,7 +94,7 @@ export const retryStrategy: RecoveryStrategy = {
   name: "retry",
   canHandle: (error: GenerationError) =>
     error.retryable && error.retryAfter !== undefined,
-  execute: async (error: GenerationError, task: GenerationTask) => {
+  execute: async (error: GenerationError) => {
     if (error.retryAfter) {
       await new Promise((resolve) =>
         setTimeout(resolve, (error.retryAfter || 0) * 1000)

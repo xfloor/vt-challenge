@@ -32,7 +32,6 @@ class StorageManager {
 const SESSION_KEY = "videomaker_session";
 const SETTINGS_KEY = "videomaker_settings";
 const ONBOARDING_KEY = "videomaker_onboarding";
-const GENERATION_HISTORY_KEY = "videomaker_generation_history";
 
 interface AppSettings {
   theme: "light" | "dark" | "system";
@@ -54,17 +53,6 @@ interface OnboardingState {
   currentStep: number;
   skippedSteps: number[];
   completedAt?: string;
-}
-
-interface GenerationHistoryEntry {
-  id: string;
-  type: "title" | "storyboard" | "scene-prompt" | "image";
-  input: any;
-  output: any;
-  duration: number; // milliseconds
-  timestamp: string;
-  success: boolean;
-  error?: string;
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -278,98 +266,6 @@ export class SessionStorage {
   }
 
   /**
-   * Add generation history entry
-   */
-  addGenerationHistory(entry: GenerationHistoryEntry): boolean {
-    try {
-      const history = this.getGenerationHistory();
-      const newHistory = [entry, ...history];
-
-      // Keep only last 100 entries
-      const trimmedHistory = newHistory.slice(0, 100);
-
-      this.storageManager.setItem(GENERATION_HISTORY_KEY, trimmedHistory);
-      return true;
-    } catch (error) {
-      console.error("Failed to add generation history:", error);
-      return false;
-    }
-  }
-
-  /**
-   * Get generation history
-   */
-  getGenerationHistory(): GenerationHistoryEntry[] {
-    try {
-      return (
-        this.storageManager.getItem<GenerationHistoryEntry[]>(
-          GENERATION_HISTORY_KEY
-        ) || []
-      );
-    } catch (error) {
-      console.error("Failed to get generation history:", error);
-      return [];
-    }
-  }
-
-  /**
-   * Clear generation history
-   */
-  clearGenerationHistory(): boolean {
-    try {
-      this.storageManager.removeItem(GENERATION_HISTORY_KEY);
-      return true;
-    } catch (error) {
-      console.error("Failed to clear generation history:", error);
-      return false;
-    }
-  }
-
-  /**
-   * Get generation statistics
-   */
-  getGenerationStats(): {
-    total: number;
-    successful: number;
-    failed: number;
-    averageDuration: number;
-    byType: Record<string, number>;
-  } {
-    try {
-      const history = this.getGenerationHistory();
-      const total = history.length;
-      const successful = history.filter((entry) => entry.success).length;
-      const failed = total - successful;
-      const averageDuration =
-        total > 0
-          ? history.reduce((sum, entry) => sum + entry.duration, 0) / total
-          : 0;
-
-      const byType = history.reduce((acc, entry) => {
-        acc[entry.type] = (acc[entry.type] || 0) + 1;
-        return acc;
-      }, {} as Record<string, number>);
-
-      return {
-        total,
-        successful,
-        failed,
-        averageDuration: Math.round(averageDuration),
-        byType,
-      };
-    } catch (error) {
-      console.error("Failed to get generation stats:", error);
-      return {
-        total: 0,
-        successful: 0,
-        failed: 0,
-        averageDuration: 0,
-        byType: {},
-      };
-    }
-  }
-
-  /**
    * Initialize new session
    */
   initializeSession(userId?: string): UserSession {
@@ -393,13 +289,11 @@ export class SessionStorage {
     session: UserSession | null;
     settings: AppSettings;
     onboarding: OnboardingState;
-    generationHistory: GenerationHistoryEntry[];
   } {
     return {
       session: this.getSession(),
       settings: this.getSettings(),
       onboarding: this.getOnboardingState(),
-      generationHistory: this.getGenerationHistory(),
     };
   }
 
@@ -410,7 +304,6 @@ export class SessionStorage {
     session?: UserSession;
     settings?: AppSettings;
     onboarding?: OnboardingState;
-    generationHistory?: GenerationHistoryEntry[];
   }): boolean {
     try {
       if (data.session) {
@@ -423,13 +316,6 @@ export class SessionStorage {
 
       if (data.onboarding) {
         this.updateOnboardingState(data.onboarding);
-      }
-
-      if (data.generationHistory) {
-        this.storageManager.setItem(
-          GENERATION_HISTORY_KEY,
-          data.generationHistory
-        );
       }
 
       return true;
@@ -447,7 +333,6 @@ export class SessionStorage {
       this.clearSession();
       this.resetSettings();
       this.resetOnboarding();
-      this.clearGenerationHistory();
       return true;
     } catch (error) {
       console.error("Failed to clear all data:", error);

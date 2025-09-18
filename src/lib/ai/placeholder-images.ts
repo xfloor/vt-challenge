@@ -29,13 +29,6 @@ export const PLACEHOLDER_IMAGES = [
 ];
 
 /**
- * Get a placeholder image based on scene index
- */
-export function getPlaceholderImage(sceneIndex: number): string {
-  return PLACEHOLDER_IMAGES[sceneIndex % PLACEHOLDER_IMAGES.length];
-}
-
-/**
  * Get a placeholder image based on prompt content
  */
 export function getPlaceholderImageByPrompt(prompt: string): string {

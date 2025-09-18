@@ -9,7 +9,6 @@ import {
   validateImageData,
 } from "@/lib/debug/image-debug";
 import { projectStorage } from "@/lib/storage/projects";
-import { sessionStorage } from "@/lib/storage/session";
 import { ProjectStatus, SceneStatus, VideoProject } from "@/types/project";
 // Removed direct function imports - now using API endpoints
 
@@ -85,12 +84,7 @@ export async function generateProjectContentEnhanced(
   );
   const startTime = Date.now();
   const errors: GenerationError[] = [];
-  const {
-    useClientStorage = false,
-    onProgress,
-    onStepComplete,
-    onError,
-  } = options;
+  const { onProgress, onStepComplete, onError } = options;
 
   let progress: GenerationProgress = {
     step: GenerationStep.TITLE,
@@ -129,19 +123,6 @@ export async function generateProjectContentEnhanced(
     const project = await loadProject(projectId);
     if (!project) {
       throw new Error(`Project not found: ${projectId}`);
-    }
-
-    // Record generation start
-    if (useClientStorage) {
-      sessionStorage.addGenerationHistory({
-        id: crypto.randomUUID(),
-        type: "title",
-        input: { projectId, prompt: project.originalPrompt },
-        output: null,
-        duration: 0,
-        timestamp: new Date().toISOString(),
-        success: false,
-      });
     }
 
     // Step 1: Generate title
@@ -746,19 +727,6 @@ export async function generateProjectContentEnhanced(
 
     const timeElapsed = Date.now() - startTime;
 
-    // Record successful generation
-    if (useClientStorage) {
-      sessionStorage.addGenerationHistory({
-        id: crypto.randomUUID(),
-        type: "storyboard",
-        input: { projectId, prompt: project.originalPrompt },
-        output: { title, storyboard, scenes: project.scenes.length },
-        duration: timeElapsed,
-        timestamp: new Date().toISOString(),
-        success: true,
-      });
-    }
-
     return {
       success: true,
       projectId,
@@ -1069,36 +1037,4 @@ export async function regenerateScene(
 
     return false;
   }
-}
-
-/**
- * Get generation progress for a project
- */
-export function getGenerationProgress(project: VideoProject): {
-  completed: number;
-  total: number;
-  percentage: number;
-  status: string;
-} {
-  const completed = project.scenes.filter(
-    (s) => s.status === SceneStatus.COMPLETED
-  ).length;
-  const total = project.scenes.length;
-  const percentage = Math.round((completed / total) * 100);
-
-  let status = "Initializing";
-
-  if (project.status === ProjectStatus.COMPLETED) {
-    status = "Completed";
-  } else if (project.status === ProjectStatus.FAILED) {
-    status = "Failed";
-  } else if (project.title && project.storyboard) {
-    status = `Generating images (${completed}/${total})`;
-  } else if (project.title) {
-    status = "Creating storyboard";
-  } else {
-    status = "Generating title";
-  }
-
-  return { completed, total, percentage, status };
 }

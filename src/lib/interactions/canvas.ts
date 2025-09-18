@@ -78,24 +78,21 @@ export function useCanvasDrag({
     [bounds, position.width, position.height]
   );
 
-  const handleDragStart = useCallback(
-    (event: any, info: PanInfo) => {
-      if (disabled) return;
+  const handleDragStart = useCallback(() => {
+    if (disabled) return;
 
-      setDragState({
-        isDragging: true,
-        startPosition: position,
-        currentPosition: position,
-        delta: { x: 0, y: 0 },
-      });
+    setDragState({
+      isDragging: true,
+      startPosition: position,
+      currentPosition: position,
+      delta: { x: 0, y: 0 },
+    });
 
-      onDragStart?.();
-    },
-    [disabled, position, onDragStart]
-  );
+    onDragStart?.();
+  }, [disabled, position, onDragStart]);
 
   const handleDrag = useCallback(
-    (event: any, info: PanInfo) => {
+    (_event: any, info: PanInfo) => {
       if (disabled || !dragState.isDragging) return;
 
       const newX = snapToGridValue(position.x + info.offset.x);
@@ -132,7 +129,7 @@ export function useCanvasDrag({
   );
 
   const handleDragEnd = useCallback(
-    (event: any, info: PanInfo) => {
+    (_event: any, info: PanInfo) => {
       if (disabled || !dragState.isDragging) return;
 
       const finalX = snapToGridValue(position.x + info.offset.x);

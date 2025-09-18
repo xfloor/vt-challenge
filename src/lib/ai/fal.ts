@@ -187,21 +187,6 @@ export async function generateImageFromPrompt(
 }
 
 /**
- * Edit existing image with new prompt
- */
-export async function editImage(
-  originalImageData: string,
-  editPrompt: string,
-  model: "fast" | "quality" = "quality"
-): Promise<{ imageData: string; width: number; height: number }> {
-  // For image editing, we'll use the quality model and regenerate
-  // In a real implementation, you might use img2img or specific editing models
-  const enhancedPrompt = `${editPrompt}, based on the style and composition of the original image, 16:9 aspect ratio, high quality`;
-
-  return generateImageFromPrompt(enhancedPrompt, model);
-}
-
-/**
  * Generate image from text prompt (backward compatibility wrapper)
  */
 export async function generateImage(
@@ -209,23 +194,6 @@ export async function generateImage(
   model: "fast" | "quality" = "fast"
 ): Promise<{ imageData: string; width: number; height: number }> {
   return generateImageFromPrompt(prompt, model);
-}
-
-/**
- * Check if Fal AI is properly configured
- */
-export function isFalConfigured(): boolean {
-  return !!config.falAI.apiKey;
-}
-
-/**
- * Get available models
- */
-export function getAvailableModels() {
-  return {
-    fast: config.falAI.models.fast,
-    quality: config.falAI.models.quality,
-  };
 }
 
 // Removed unused function convertImageUrlToBase64

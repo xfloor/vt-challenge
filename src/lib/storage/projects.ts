@@ -251,24 +251,13 @@ export class ProjectStorage {
       const projects = await this.getProjects();
       const existingIndex = projects.findIndex((p) => p.id === project.id);
 
-      const projectSummary = {
-        id: project.id,
-        title: project.title,
-        status: project.status,
-        createdAt: project.createdAt,
+      // Create a summary project with minimal data for the projects list
+      const projectSummary: VideoProject = {
+        ...project,
         updatedAt: new Date(),
-        originalPrompt: project.originalPrompt,
-        storyboard: project.storyboard,
-        scenes: project.scenes.map((scene) => ({
-          id: scene.id,
-          status: scene.status,
-          prompt: scene.prompt,
-          hasImageData: !!scene.imageData,
-          imageDataLength: scene.imageData?.length || 0,
-        })),
-        // Don't include full image data in the summary
+        // Keep the full project data but mark as fallback storage
         _fallbackStorage: true,
-      };
+      } as VideoProject & { _fallbackStorage: boolean };
 
       if (existingIndex >= 0) {
         projects[existingIndex] = projectSummary;

@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(error, { status: 400 });
     }
 
-    const { title, description } = validation.data;
+    const { description } = validation.data;
 
     // Additional validation
     const promptError = validatePrompt(description, 1, 1000);

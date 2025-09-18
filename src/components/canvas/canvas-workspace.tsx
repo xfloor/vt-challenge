@@ -96,9 +96,7 @@ export function CanvasWorkspace({
   }, []);
 
   const handleSceneDragStart = useCallback(
-    (e: React.MouseEvent, sceneId: string) => {
-      e.stopPropagation();
-      e.preventDefault();
+    (_e: React.MouseEvent, sceneId: string) => {
       setCanvasState((prev) => ({
         ...prev,
         selectedSceneId: sceneId,

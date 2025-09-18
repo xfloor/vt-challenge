@@ -90,8 +90,8 @@ export default function ProjectDetailPage() {
           console.log("Project updated, refreshing...", updatedProject);
           setProject(updatedProject);
         }
-      } catch (error) {
-        console.error("Error polling for project updates:", error);
+      } catch {
+        console.error("Error polling for project updates");
       }
     }, 2000); // Poll every 2 seconds
 
