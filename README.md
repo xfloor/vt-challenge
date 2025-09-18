@@ -27,7 +27,7 @@ pnpm install
 
 ### 2. Set Up Environment Variables
 
-Create a `.env` file in the root directory with your API keys:
+Edit `.env.example` file in the root directory with your API keys and rename it to `.env`:
 
 ```bash
 OPENROUTER_API_KEY=your_openrouter_key_here

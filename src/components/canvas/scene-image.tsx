@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { Scene, SceneStatus } from "@/types/project";
-import { Edit3, Image as ImageIcon, Play, RefreshCw, X } from "lucide-react";
+import { Edit3, Image as ImageIcon, RefreshCw, X } from "lucide-react";
 import { useCallback, useState } from "react";
 import { EditPopover } from "./edit-popover";
 
@@ -123,34 +123,11 @@ export function SceneImage({
     }
   }, [isDragging, onDragEnd]);
 
-  const getStatusIcon = () => {
-    switch (scene.status) {
-      case SceneStatus.GENERATING:
-        return <LoadingSpinner size="sm" className="text-yellow-600" />;
-      case SceneStatus.EDITING:
-        return <RefreshCw className="h-4 w-4 text-blue-600 animate-spin" />;
-      case SceneStatus.COMPLETED:
-        return <Play className="h-4 w-4 text-green-600" />;
-      case SceneStatus.FAILED:
-        return <X className="h-4 w-4 text-red-600" />;
-      default:
-        return <ImageIcon className="h-4 w-4 text-gray-600" />;
-    }
-  };
+  // Status icon function removed - no longer needed
 
   const getStatusColor = () => {
-    switch (scene.status) {
-      case SceneStatus.GENERATING:
-        return "border-yellow-400 bg-yellow-50";
-      case SceneStatus.EDITING:
-        return "border-blue-400 bg-blue-50";
-      case SceneStatus.COMPLETED:
-        return "border-green-400 bg-green-50";
-      case SceneStatus.FAILED:
-        return "border-red-400 bg-red-50";
-      default:
-        return "border-gray-300 bg-gray-50";
-    }
+    // Remove colored borders - use neutral styling
+    return "border-gray-200 bg-gray-50";
   };
 
   const isInteractive =
@@ -169,7 +146,7 @@ export function SceneImage({
     >
       <Card
         className={`
-          relative select-none overflow-hidden cursor-pointer transition-all duration-200
+          relative select-none overflow-hidden cursor-pointer transition-all duration-200 p-0
           ${isSelected ? "ring-2 ring-primary ring-offset-2" : ""}
           ${getStatusColor()}
           ${isInteractive ? "hover:shadow-lg" : ""}
@@ -188,10 +165,26 @@ export function SceneImage({
             </div>
           </div>
 
-          {/* Status Icon */}
-          <div className="absolute top-2 right-2 z-10">{getStatusIcon()}</div>
+          {/* Edit Button - Top Right Corner */}
+          {isHovered && isInteractive && (
+            <div className="absolute top-2 right-2 z-20">
+              <Button
+                data-edit-button
+                size="sm"
+                variant="secondary"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowEditPopover(true);
+                }}
+                className="opacity-90 hover:opacity-100 shadow-lg cursor-pointer"
+              >
+                <Edit3 className="h-3 w-3 mr-1" />
+                Edit
+              </Button>
+            </div>
+          )}
 
-          {/* Image Content */}
+          {/* Image Content - Full Coverage with Dark Overlay */}
           <div className="relative w-full h-full">
             {scene.imageData && !imageError ? (
               <>
@@ -211,6 +204,9 @@ export function SceneImage({
                   onLoad={handleImageLoad}
                   onError={handleImageError}
                 />
+
+                {/* Dark Overlay for better text readability */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
 
                 {/* Loading Overlay */}
                 {!isImageLoaded && (
@@ -247,31 +243,16 @@ export function SceneImage({
               </div>
             )}
 
-            {/* Overlay Actions */}
-            {isHovered && isInteractive && (
-              <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                <Button
-                  data-edit-button
-                  size="sm"
-                  variant="secondary"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShowEditPopover(true);
-                  }}
-                  className="opacity-90 hover:opacity-100"
-                >
-                  <Edit3 className="h-3 w-3 mr-1" />
-                  Edit
-                </Button>
-              </div>
-            )}
+            {/* Overlay Actions - Removed, edit button moved to top right */}
           </div>
 
-          {/* Scene Prompt (collapsed) */}
-          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2">
-            <p className="text-white text-xs line-clamp-2 leading-tight">
-              {scene.prompt}
-            </p>
+          {/* Scene Prompt - Larger and more prominent with gradient shadow */}
+          <div className="absolute bottom-0 left-0 right-0 p-4">
+            <div className="bg-gradient-to-t from-black/80 via-black/40 to-transparent -mx-4 -mb-4 px-4 pb-4 pt-2 rounded-b-lg">
+              <p className="text-white text-sm font-medium line-clamp-3 leading-relaxed drop-shadow-2xl">
+                {scene.prompt}
+              </p>
+            </div>
           </div>
         </CardContent>
       </Card>

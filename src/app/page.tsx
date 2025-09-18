@@ -86,19 +86,49 @@ export default function HomePage() {
       </LayoutHeader> */}
 
       <LayoutMain>
-        <Container className="py-16 space-y-16">
-          <HeroPrompt
-            onProjectCreate={handleProjectCreate}
-            isCreating={isCreating}
-          />
-
-          <UserProjects
-            onCreateNew={() => {
-              // Scroll to the top to show the HeroPrompt
-              window.scrollTo({ top: 0, behavior: "smooth" });
+        <div className="min-h-screen w-full relative rounded-4xl overflow-hidden">
+          {/* Prismatic Aurora Burst - Multi-layered Gradient */}
+          <div
+            className="absolute inset-0 z-0 hidden dark:block"
+            style={{
+              background: `
+          radial-gradient(ellipse 120% 80% at 70% 20%, rgba(255, 20, 147, 0.15), transparent 50%),
+          radial-gradient(ellipse 100% 60% at 30% 10%, rgba(0, 255, 255, 0.12), transparent 60%),
+          radial-gradient(ellipse 90% 70% at 50% 0%, rgba(138, 43, 226, 0.18), transparent 65%),
+          radial-gradient(ellipse 110% 50% at 80% 30%, rgba(255, 215, 0, 0.08), transparent 40%),
+          #000000
+        `,
             }}
           />
-        </Container>
+
+          {/* Aurora Dream Diagonal Flow */}
+          <div
+            className="absolute inset-0 z-0 dark:hidden"
+            style={{
+              background: `
+         radial-gradient(ellipse 80% 60% at 5% 40%, rgba(175, 109, 255, 0.48), transparent 67%),
+        radial-gradient(ellipse 70% 60% at 45% 45%, rgba(255, 100, 180, 0.41), transparent 67%),
+        radial-gradient(ellipse 62% 52% at 83% 76%, rgba(255, 235, 170, 0.44), transparent 63%),
+        radial-gradient(ellipse 60% 48% at 75% 20%, rgba(120, 190, 255, 0.36), transparent 66%),
+        linear-gradient(45deg, #f7eaff 0%, #fde2ea 100%)
+      `,
+            }}
+          />
+
+          <Container className="py-16 space-y-16 z-10 relative">
+            <HeroPrompt
+              onProjectCreate={handleProjectCreate}
+              isCreating={isCreating}
+            />
+
+            <UserProjects
+              onCreateNew={() => {
+                // Scroll to the top to show the HeroPrompt
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }}
+            />
+          </Container>
+        </div>
       </LayoutMain>
     </Layout>
   );
