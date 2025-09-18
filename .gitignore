@@ -4,5 +4,11 @@ node_modules/
 # Next.js build output
 .next/
 
-# Cursor MCP configuration
+# Cursor and Tests
 .cursor/mcp.json
+.playwright-mcp/
+playwright-report/
+test-results/
+
+.env
+*.log
